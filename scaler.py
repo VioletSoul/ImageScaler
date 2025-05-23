@@ -52,6 +52,7 @@ class ImageScaler(QWidget):
                 'load_title': "Select Image",
                 'load_error': "Failed to load image:\n{}",
                 'lang_switch': "Language:",
+                'please_load': "Please load an image first.",
             },
             'ru': {
                 'title': "Масштабирование изображения",
@@ -80,6 +81,7 @@ class ImageScaler(QWidget):
                 'load_title': "Выберите изображение",
                 'load_error': "Не удалось загрузить изображение:\n{}",
                 'lang_switch': "Язык:",
+                'please_load': "Пожалуйста, сначала загрузите изображение.",
             }
         }
 
@@ -187,20 +189,11 @@ class ImageScaler(QWidget):
 
         self.setLayout(main_layout)
 
-        # Style for disabled buttons
-        disabled_style = """
-            QPushButton:disabled {
-                color: #666666;
-                background-color: #cccccc;
-                border: 1px solid #999999;
-            }
-        """
-        for btn in (self.btn_downscale, self.btn_upscale):
-            btn.setStyleSheet(disabled_style)
+        # Style for disabled buttons removed to keep buttons always enabled
 
         # Initialize UI texts and button states
         self.update_ui_texts()
-        self.update_buttons_state()
+        # No disabling buttons on start, so no update_buttons_state call
 
     def update_ui_texts(self):
         """Update all UI texts according to the selected language."""
@@ -246,7 +239,6 @@ class ImageScaler(QWidget):
             self.img_pil_original = Image.open(file_path).convert("RGBA")
             self.scale = 1.0
             self.update_image()
-            self.update_buttons_state()
         except Exception as e:
             QMessageBox.warning(self, t['title'], t['load_error'].format(e))
 
@@ -304,36 +296,27 @@ class ImageScaler(QWidget):
         self.update_image()
 
     def downscale(self):
-        """Decrease scale factor by 0.05, minimum 0.05."""
+        """Decrease scale factor by 0.05, minimum 0.05. Show message if no image loaded."""
         if self.img_pil_original is None:
+            QMessageBox.information(self, self.texts[self.lang]['title'], self.texts[self.lang]['please_load'])
             return
         self.scale = max(0.05, self.scale - 0.05)
         self.update_image()
-        self.update_buttons_state()
 
     def upscale(self):
-        """Increase scale factor by 0.05, maximum 3.0."""
+        """Increase scale factor by 0.05, maximum 3.0. Show message if no image loaded."""
         if self.img_pil_original is None:
+            QMessageBox.information(self, self.texts[self.lang]['title'], self.texts[self.lang]['please_load'])
             return
         if self.scale < 3.0:
             self.scale = min(3.0, self.scale + 0.05)
             self.update_image()
-        self.update_buttons_state()
-
-    def update_buttons_state(self):
-        """Enable or disable scale buttons depending on image load and scale limits."""
-        if self.img_pil_original is None:
-            self.btn_upscale.setEnabled(False)
-            self.btn_downscale.setEnabled(False)
-        else:
-            self.btn_upscale.setEnabled(self.scale < 3.0)
-            self.btn_downscale.setEnabled(self.scale > 0.05)
 
     def save_as(self):
-        """Open file dialog to save the resized image."""
+        """Open file dialog to save the resized image. Show message if no image loaded."""
         t = self.texts[self.lang]
         if self.img_resized is None:
-            QMessageBox.information(self, t['title'], t['save_none'])
+            QMessageBox.information(self, t['title'], t['please_load'])
             return
         file_path, _ = QFileDialog.getSaveFileName(
             self, t['save_title'], "",
