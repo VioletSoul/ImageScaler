@@ -14,16 +14,16 @@ class ImageScaler(QWidget):
         super().__init__()
         self.setWindowTitle("Image Resolution Scaler")
 
-        # Установка иконки при наличии
+        # Set window icon if available
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.png')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        # Поддерживаемые языки
+        # Supported languages and default language
         self.languages = ['en', 'ru']
-        self.lang = 'en'  # язык по умолчанию
+        self.lang = 'en'
 
-        # Локализованные тексты
+        # Localized UI texts for English and Russian
         self.texts = {
             'en': {
                 'title': "Image Resolution Scaler",
@@ -83,38 +83,49 @@ class ImageScaler(QWidget):
             }
         }
 
+        # Current scale factor
         self.scale = 1.0
+        # Original loaded PIL image
         self.img_pil_original = None
+        # Resized image after interpolation
         self.img_resized = None
 
-        # Элементы интерфейса
+        # Create UI elements
+
+        # Combo box for interpolation methods
         self.combo_interp = QComboBox()
         self.combo_interp.addItems(self.texts[self.lang]['interp_methods'])
-        self.combo_interp.setCurrentIndex(2)
+        self.combo_interp.setCurrentIndex(2)  # Default Bicubic
         self.combo_interp.setMaximumWidth(180)
         self.combo_interp.currentIndexChanged.connect(self.update_image)
 
+        # Combo box for language selection
         self.combo_lang = QComboBox()
         self.combo_lang.addItems(['English', 'Русский'])
         self.combo_lang.setMaximumWidth(120)
         self.combo_lang.currentIndexChanged.connect(self.switch_language)
 
+        # Buttons for load, scale down/up, save
         self.btn_load = QPushButton()
         self.btn_downscale = QPushButton()
         self.btn_upscale = QPushButton()
         self.btn_save = QPushButton()
 
+        # Set fixed width and size policy for buttons
         for btn in (self.btn_load, self.btn_downscale, self.btn_upscale, self.btn_save):
             btn.setMaximumWidth(180)
             btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
+        # Connect buttons to their handlers
         self.btn_load.clicked.connect(self.load_image)
         self.btn_downscale.clicked.connect(self.downscale)
         self.btn_upscale.clicked.connect(self.upscale)
         self.btn_save.clicked.connect(self.save_as)
 
+        # Grid layout to show image parameters (scale, sizes)
         self.info_grid = QGridLayout()
         self.labels_values = []
+        # Create labels for titles and values
         for i in range(4):
             lbl_title = QLabel()
             lbl_value = QLabel("-")
@@ -123,21 +134,24 @@ class ImageScaler(QWidget):
             self.labels_values.append(lbl_value)
         self.info_titles = [self.info_grid.itemAtPosition(i, 0).widget() for i in range(4)]
 
+        # Container frame for info grid
         self.info_container = QFrame()
         self.info_container.setLayout(self.info_grid)
         self.info_container.setMaximumWidth(220)
 
+        # Label to show interpolation method when scaling up
         self.label_interpolation = QLabel("")
         self.label_interpolation.setStyleSheet("color: red; font-weight: bold;")
         self.label_interpolation.hide()
 
+        # Label to display the image
         self.label_image = QLabel(self.texts[self.lang]['no_image'])
         self.label_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label_image.setStyleSheet("border: 1px solid #444; background: #232323; color: #bbb;")
         self.label_image.setMinimumSize(400, 400)
         self.label_image.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        # Компоновка интерфейса
+        # Layout for controls: language selector, interpolation selector, buttons, info
         control_layout = QVBoxLayout()
         lang_hbox = QHBoxLayout()
         lang_hbox.addWidget(QLabel(self.texts[self.lang]['lang_switch']))
@@ -159,9 +173,11 @@ class ImageScaler(QWidget):
         control_layout.addWidget(self.label_interpolation)
         control_layout.addStretch(1)
 
+        # Layout for image display
         image_layout = QVBoxLayout()
         image_layout.addWidget(self.label_image)
 
+        # Main horizontal layout: controls on left, image on right
         main_layout = QHBoxLayout()
         control_widget = QFrame()
         control_widget.setLayout(control_layout)
@@ -171,7 +187,7 @@ class ImageScaler(QWidget):
 
         self.setLayout(main_layout)
 
-        # Стилизация отключенных кнопок
+        # Style for disabled buttons
         disabled_style = """
             QPushButton:disabled {
                 color: #666666;
@@ -182,10 +198,12 @@ class ImageScaler(QWidget):
         for btn in (self.btn_downscale, self.btn_upscale):
             btn.setStyleSheet(disabled_style)
 
+        # Initialize UI texts and button states
         self.update_ui_texts()
         self.update_buttons_state()
 
     def update_ui_texts(self):
+        """Update all UI texts according to the selected language."""
         t = self.texts[self.lang]
         self.setWindowTitle(t['title'])
         self.btn_load.setText(t['load'])
@@ -198,21 +216,25 @@ class ImageScaler(QWidget):
         for lbl, title in zip(self.info_titles, titles):
             lbl.setText(title)
 
+        # Update interpolation combo box without triggering signals
         self.combo_interp.blockSignals(True)
         self.combo_interp.clear()
         self.combo_interp.addItems(t['interp_methods'])
-        self.combo_interp.setCurrentIndex(2)
+        self.combo_interp.setCurrentIndex(2)  # Default Bicubic
         self.combo_interp.blockSignals(False)
 
+        # Update language combo box texts
         self.combo_lang.setItemText(0, "English")
         self.combo_lang.setItemText(1, "Русский")
 
     def switch_language(self, idx):
+        """Switch UI language and update texts."""
         self.lang = self.languages[idx]
         self.update_ui_texts()
         self.update_image()
 
     def load_image(self):
+        """Open file dialog to load an image, convert to RGBA PIL Image."""
         t = self.texts[self.lang]
         file_path, _ = QFileDialog.getOpenFileName(
             self, t['load_title'], "",
@@ -229,6 +251,7 @@ class ImageScaler(QWidget):
             QMessageBox.warning(self, t['title'], t['load_error'].format(e))
 
     def update_image(self):
+        """Resize and display the image according to current scale and interpolation."""
         if self.img_pil_original is None:
             return
 
@@ -237,6 +260,7 @@ class ImageScaler(QWidget):
         new_img_w = max(1, int(self.img_pil_original.width * self.scale))
         new_img_h = max(1, int(self.img_pil_original.height * self.scale))
 
+        # Map combo box index to Pillow interpolation method
         idx = self.combo_interp.currentIndex()
         methods = {
             0: Image.NEAREST,
@@ -247,6 +271,7 @@ class ImageScaler(QWidget):
         method = methods.get(idx, Image.BICUBIC)
         self.img_resized = self.img_pil_original.resize((new_img_w, new_img_h), method)
 
+        # Convert PIL image to QImage for display
         data = self.img_resized.tobytes("raw", "RGBA")
         qimg = QImage(data, new_img_w, new_img_h, QImage.Format.Format_RGBA8888)
         pixmap = QPixmap.fromImage(qimg)
@@ -255,6 +280,7 @@ class ImageScaler(QWidget):
                                       Qt.TransformationMode.SmoothTransformation)
         self.label_image.setPixmap(pixmap_scaled)
 
+        # Update info labels with current scale and sizes
         values = [
             f"{self.scale:.2f}x",
             f"{self.img_pil_original.width}×{self.img_pil_original.height} px",
@@ -264,18 +290,21 @@ class ImageScaler(QWidget):
         for lbl_value, val in zip(self.labels_values, values):
             lbl_value.setText(val)
 
+        # Show interpolation method label only if scale > 1.0
         if self.scale > 1.0:
             interp_name = self.texts[self.lang]['interp_methods'][idx]
-            self.label_interpolation.setText(f"Method: {interp_name}")
+            self.label_interpolation.setText(self.texts[self.lang]['interp_shown'].format(interp_name))
             self.label_interpolation.show()
         else:
             self.label_interpolation.hide()
 
     def resizeEvent(self, event):
+        """Update image display when window is resized."""
         super().resizeEvent(event)
         self.update_image()
 
     def downscale(self):
+        """Decrease scale factor by 0.05, minimum 0.05."""
         if self.img_pil_original is None:
             return
         self.scale = max(0.05, self.scale - 0.05)
@@ -283,6 +312,7 @@ class ImageScaler(QWidget):
         self.update_buttons_state()
 
     def upscale(self):
+        """Increase scale factor by 0.05, maximum 3.0."""
         if self.img_pil_original is None:
             return
         if self.scale < 3.0:
@@ -291,6 +321,7 @@ class ImageScaler(QWidget):
         self.update_buttons_state()
 
     def update_buttons_state(self):
+        """Enable or disable scale buttons depending on image load and scale limits."""
         if self.img_pil_original is None:
             self.btn_upscale.setEnabled(False)
             self.btn_downscale.setEnabled(False)
@@ -299,6 +330,7 @@ class ImageScaler(QWidget):
             self.btn_downscale.setEnabled(self.scale > 0.05)
 
     def save_as(self):
+        """Open file dialog to save the resized image."""
         t = self.texts[self.lang]
         if self.img_resized is None:
             QMessageBox.information(self, t['title'], t['save_none'])
