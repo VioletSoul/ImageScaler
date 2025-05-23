@@ -1,160 +1,177 @@
-"""
-ImageScaler - PyQt6 Image Resolution Scaler Application
-
-This module provides a GUI application for loading, displaying, scaling,
-and saving images with high-quality bicubic interpolation. It supports
-dynamic resizing of the window and updates the displayed image accordingly.
-
-Features:
-- Load images of various formats.
-- Scale images between 0.05x and 3.0x with fine step increments.
-- Display detailed image size information in a neatly formatted table.
-- Show the interpolation method used only when image is upscaled (>1.0x).
-- Save the currently displayed scaled image to disk.
-- Responsive GUI with buttons centered and disabled states visually distinct.
-- Custom window icon displayed in the title bar and taskbar.
-
-Author: VioletSoul
-Date: 2025-05-23
-"""
-
 import sys
+import os
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton,
     QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox,
-    QSizePolicy, QGridLayout, QFrame
+    QSizePolicy, QGridLayout, QFrame, QComboBox
 )
 from PyQt6.QtGui import QPixmap, QImage, QIcon
 from PyQt6.QtCore import Qt
 from PIL import Image
-import os
-
 
 class ImageScaler(QWidget):
-    """
-    Main application window class for image scaling.
-
-    Attributes:
-        scale (float): Current scaling factor for the image.
-        img_pil_original (PIL.Image.Image): Original loaded image.
-        img_resized (PIL.Image.Image): Currently scaled image.
-        label_image (QLabel): Widget displaying the image.
-        label_interpolation (QLabel): Label showing interpolation method when upscaled.
-        labels_values (list): List of QLabel widgets holding size info values.
-        btn_downscale (QPushButton): Button to decrease scale.
-        btn_upscale (QPushButton): Button to increase scale.
-    """
-
     def __init__(self):
-        """
-        Initialize the GUI components, layout, and set window icon.
-        """
         super().__init__()
-        self.setWindowTitle("Image Resolution Scaler with Bicubic Interpolation")
+        self.setWindowTitle("Image Resolution Scaler")
 
-        # Set window icon (make sure 'icon.png' is in the same folder as this script)
+        # Установка иконки при наличии
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.png')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
-        else:
-            # If icon not found, no icon will be set
-            print(f"Warning: Icon file not found at {icon_path}")
 
-        # Initialize scale and image placeholders
+        # Поддерживаемые языки
+        self.languages = ['en', 'ru']
+        self.lang = 'en'  # язык по умолчанию
+
+        # Локализованные тексты
+        self.texts = {
+            'en': {
+                'title': "Image Resolution Scaler",
+                'interp_label': "Interpolation method:",
+                'interp_methods': [
+                    "Nearest (Nearest Neighbor)",
+                    "Bilinear",
+                    "Bicubic",
+                    "Lanczos"
+                ],
+                'load': "Load Image",
+                'downscale': "Decrease",
+                'upscale': "Increase",
+                'save': "Save As...",
+                'params': "Image Parameters:",
+                'scale': "Scale:",
+                'orig_size': "Original size:",
+                'curr_size': "Current size:",
+                'frame_size': "Size in frame:",
+                'no_image': "Load an image",
+                'interp_shown': "Method: {}",
+                'save_title': "Save Image As",
+                'save_success': "Image saved: {}",
+                'save_error': "Failed to save image:\n{}",
+                'save_none': "No image to save.",
+                'load_title': "Select Image",
+                'load_error': "Failed to load image:\n{}",
+                'lang_switch': "Language:",
+            },
+            'ru': {
+                'title': "Масштабирование изображения",
+                'interp_label': "Метод интерполяции:",
+                'interp_methods': [
+                    "Ближайший сосед (Nearest)",
+                    "Билинейная",
+                    "Бикубическая",
+                    "Ланцош"
+                ],
+                'load': "Загрузить",
+                'downscale': "Уменьшить",
+                'upscale': "Увеличить",
+                'save': "Сохранить как",
+                'params': "Параметры изображения:",
+                'scale': "Масштаб:",
+                'orig_size': "Исходный размер:",
+                'curr_size': "Текущий размер:",
+                'frame_size': "Размер в окне:",
+                'no_image': "Загрузите изображение",
+                'interp_shown': "Метод: {}",
+                'save_title': "Сохранить изображение как",
+                'save_success': "Изображение сохранено: {}",
+                'save_error': "Не удалось сохранить изображение:\n{}",
+                'save_none': "Нет изображения для сохранения.",
+                'load_title': "Выберите изображение",
+                'load_error': "Не удалось загрузить изображение:\n{}",
+                'lang_switch': "Язык:",
+            }
+        }
+
         self.scale = 1.0
         self.img_pil_original = None
         self.img_resized = None
 
-        # QLabel to display the image; styled and minimum size set
-        self.label_image = QLabel("Load an image")
-        self.label_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label_image.setStyleSheet("border: 1px solid gray;")
-        self.label_image.setMinimumSize(300, 300)
-        self.label_image.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        # Элементы интерфейса
+        self.combo_interp = QComboBox()
+        self.combo_interp.addItems(self.texts[self.lang]['interp_methods'])
+        self.combo_interp.setCurrentIndex(2)
+        self.combo_interp.setMaximumWidth(180)
+        self.combo_interp.currentIndexChanged.connect(self.update_image)
 
-        # Grid layout for displaying image info in a table format
+        self.combo_lang = QComboBox()
+        self.combo_lang.addItems(['English', 'Русский'])
+        self.combo_lang.setMaximumWidth(120)
+        self.combo_lang.currentIndexChanged.connect(self.switch_language)
+
+        self.btn_load = QPushButton()
+        self.btn_downscale = QPushButton()
+        self.btn_upscale = QPushButton()
+        self.btn_save = QPushButton()
+
+        for btn in (self.btn_load, self.btn_downscale, self.btn_upscale, self.btn_save):
+            btn.setMaximumWidth(180)
+            btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        self.btn_load.clicked.connect(self.load_image)
+        self.btn_downscale.clicked.connect(self.downscale)
+        self.btn_upscale.clicked.connect(self.upscale)
+        self.btn_save.clicked.connect(self.save_as)
+
         self.info_grid = QGridLayout()
-        self.info_grid.setContentsMargins(0, 0, 0, 0)
-        self.info_grid.setHorizontalSpacing(10)
-        self.info_grid.setVerticalSpacing(5)
-
-        # Titles for the info table rows
-        titles = [
-            "Scale:",
-            "Original size:",
-            "Current size (with scale):",
-            "Size in frame:"
-        ]
-
-        # Create QLabel widgets for titles and corresponding values
         self.labels_values = []
-        for i, title in enumerate(titles):
-            lbl_title = QLabel(title)
-            lbl_title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        for i in range(4):
+            lbl_title = QLabel()
             lbl_value = QLabel("-")
-            lbl_value.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.info_grid.addWidget(lbl_title, i, 0)
             self.info_grid.addWidget(lbl_value, i, 1)
             self.labels_values.append(lbl_value)
+        self.info_titles = [self.info_grid.itemAtPosition(i, 0).widget() for i in range(4)]
 
-        # Container frame for the info grid with fixed max height (~2 rows)
         self.info_container = QFrame()
         self.info_container.setLayout(self.info_grid)
-        self.info_container.setMaximumHeight(60)  # Adjust height to fit two rows comfortably
-        self.info_container.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.info_container.setMaximumWidth(220)
 
-        # Horizontal layout to center the info container
-        info_hbox = QHBoxLayout()
-        info_hbox.addStretch(1)
-        info_hbox.addWidget(self.info_container)
-        info_hbox.addStretch(1)
-
-        # Label for interpolation method, shown only when scale > 1.0
         self.label_interpolation = QLabel("")
-        self.label_interpolation.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.label_interpolation.setStyleSheet("color: red; font-weight: bold;")
-        self.label_interpolation.hide()  # Hidden by default
+        self.label_interpolation.hide()
 
-        # Control buttons with fixed max width and fixed size policy
-        btn_load = QPushButton("Load Image")
-        self.btn_downscale = QPushButton("Decrease Resolution")
-        self.btn_upscale = QPushButton("Increase Resolution")
-        btn_save = QPushButton("Save As...")
+        self.label_image = QLabel(self.texts[self.lang]['no_image'])
+        self.label_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label_image.setStyleSheet("border: 1px solid #444; background: #232323; color: #bbb;")
+        self.label_image.setMinimumSize(400, 400)
+        self.label_image.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        for btn in (btn_load, self.btn_downscale, self.btn_upscale, btn_save):
-            btn.setMaximumWidth(150)
-            btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        # Компоновка интерфейса
+        control_layout = QVBoxLayout()
+        lang_hbox = QHBoxLayout()
+        lang_hbox.addWidget(QLabel(self.texts[self.lang]['lang_switch']))
+        lang_hbox.addWidget(self.combo_lang)
+        lang_hbox.addStretch(1)
+        control_layout.addLayout(lang_hbox)
+        control_layout.addSpacing(8)
+        control_layout.addWidget(QLabel(self.texts[self.lang]['interp_label']))
+        control_layout.addWidget(self.combo_interp)
+        control_layout.addSpacing(10)
+        control_layout.addWidget(self.btn_load)
+        control_layout.addWidget(self.btn_downscale)
+        control_layout.addWidget(self.btn_upscale)
+        control_layout.addWidget(self.btn_save)
+        control_layout.addSpacing(20)
+        control_layout.addWidget(QLabel(self.texts[self.lang]['params']))
+        control_layout.addWidget(self.info_container)
+        control_layout.addSpacing(10)
+        control_layout.addWidget(self.label_interpolation)
+        control_layout.addStretch(1)
 
-        # Connect buttons to their respective methods
-        btn_load.clicked.connect(self.load_image)
-        self.btn_downscale.clicked.connect(self.downscale)
-        self.btn_upscale.clicked.connect(self.upscale)
-        btn_save.clicked.connect(self.save_as)
-
-        # Layout for buttons centered horizontally
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch(1)
-        btn_layout.addWidget(btn_load)
-        btn_layout.addWidget(self.btn_downscale)
-        btn_layout.addWidget(self.btn_upscale)
-        btn_layout.addWidget(btn_save)
-        btn_layout.addStretch(1)
-
-        # Vertical layout for image and interpolation label
         image_layout = QVBoxLayout()
         image_layout.addWidget(self.label_image)
-        image_layout.addWidget(self.label_interpolation)
-        image_layout.setAlignment(self.label_interpolation, Qt.AlignmentFlag.AlignLeft)
 
-        # Main vertical layout combining all parts
-        main_layout = QVBoxLayout()
-        main_layout.addLayout(image_layout)
-        main_layout.addLayout(info_hbox)
-        main_layout.addLayout(btn_layout)
+        main_layout = QHBoxLayout()
+        control_widget = QFrame()
+        control_widget.setLayout(control_layout)
+        control_widget.setMaximumWidth(260)
+        main_layout.addWidget(control_widget)
+        main_layout.addLayout(image_layout, stretch=1)
 
         self.setLayout(main_layout)
 
-        # Style disabled buttons with readable gray text and background
+        # Стилизация отключенных кнопок
         disabled_style = """
             QPushButton:disabled {
                 color: #666666;
@@ -165,15 +182,40 @@ class ImageScaler(QWidget):
         for btn in (self.btn_downscale, self.btn_upscale):
             btn.setStyleSheet(disabled_style)
 
-        # Initialize button states
+        self.update_ui_texts()
         self.update_buttons_state()
 
+    def update_ui_texts(self):
+        t = self.texts[self.lang]
+        self.setWindowTitle(t['title'])
+        self.btn_load.setText(t['load'])
+        self.btn_downscale.setText(t['downscale'])
+        self.btn_upscale.setText(t['upscale'])
+        self.btn_save.setText(t['save'])
+        self.label_image.setText(t['no_image'])
+
+        titles = [t['scale'], t['orig_size'], t['curr_size'], t['frame_size']]
+        for lbl, title in zip(self.info_titles, titles):
+            lbl.setText(title)
+
+        self.combo_interp.blockSignals(True)
+        self.combo_interp.clear()
+        self.combo_interp.addItems(t['interp_methods'])
+        self.combo_interp.setCurrentIndex(2)
+        self.combo_interp.blockSignals(False)
+
+        self.combo_lang.setItemText(0, "English")
+        self.combo_lang.setItemText(1, "Русский")
+
+    def switch_language(self, idx):
+        self.lang = self.languages[idx]
+        self.update_ui_texts()
+        self.update_image()
+
     def load_image(self):
-        """
-        Open a file dialog to load an image and reset scale.
-        """
+        t = self.texts[self.lang]
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Image", "",
+            self, t['load_title'], "",
             "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)"
         )
         if not file_path:
@@ -184,37 +226,35 @@ class ImageScaler(QWidget):
             self.update_image()
             self.update_buttons_state()
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to load image:\n{e}")
+            QMessageBox.warning(self, t['title'], t['load_error'].format(e))
 
     def update_image(self):
-        """
-        Resize the original image according to current scale using bicubic interpolation,
-        update the displayed pixmap, and refresh info labels.
-        """
         if self.img_pil_original is None:
             return
 
         label_w = self.label_image.width()
         label_h = self.label_image.height()
-
-        # Calculate new image size based on scale
         new_img_w = max(1, int(self.img_pil_original.width * self.scale))
         new_img_h = max(1, int(self.img_pil_original.height * self.scale))
 
-        # Resize image with bicubic interpolation for quality
-        self.img_resized = self.img_pil_original.resize((new_img_w, new_img_h), Image.BICUBIC)
+        idx = self.combo_interp.currentIndex()
+        methods = {
+            0: Image.NEAREST,
+            1: Image.BILINEAR,
+            2: Image.BICUBIC,
+            3: Image.LANCZOS,
+        }
+        method = methods.get(idx, Image.BICUBIC)
+        self.img_resized = self.img_pil_original.resize((new_img_w, new_img_h), method)
 
-        # Convert PIL image to QPixmap for display
         data = self.img_resized.tobytes("raw", "RGBA")
         qimg = QImage(data, new_img_w, new_img_h, QImage.Format.Format_RGBA8888)
         pixmap = QPixmap.fromImage(qimg)
-
-        # Scale pixmap to fit label while keeping aspect ratio
-        pixmap_scaled = pixmap.scaled(label_w, label_h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.FastTransformation)
-
+        pixmap_scaled = pixmap.scaled(label_w, label_h,
+                                      Qt.AspectRatioMode.KeepAspectRatio,
+                                      Qt.TransformationMode.SmoothTransformation)
         self.label_image.setPixmap(pixmap_scaled)
 
-        # Update info labels with current data
         values = [
             f"{self.scale:.2f}x",
             f"{self.img_pil_original.width}×{self.img_pil_original.height} px",
@@ -224,24 +264,18 @@ class ImageScaler(QWidget):
         for lbl_value, val in zip(self.labels_values, values):
             lbl_value.setText(val)
 
-        # Show interpolation method label only when image is upscaled
         if self.scale > 1.0:
-            self.label_interpolation.setText("Interpolation method: Bicubic")
+            interp_name = self.texts[self.lang]['interp_methods'][idx]
+            self.label_interpolation.setText(f"Method: {interp_name}")
             self.label_interpolation.show()
         else:
             self.label_interpolation.hide()
 
     def resizeEvent(self, event):
-        """
-        Override resize event to update image display on window resize.
-        """
         super().resizeEvent(event)
         self.update_image()
 
     def downscale(self):
-        """
-        Decrease scale by 0.05 down to minimum 0.05 and update UI.
-        """
         if self.img_pil_original is None:
             return
         self.scale = max(0.05, self.scale - 0.05)
@@ -249,9 +283,6 @@ class ImageScaler(QWidget):
         self.update_buttons_state()
 
     def upscale(self):
-        """
-        Increase scale by 0.05 up to maximum 3.0 and update UI.
-        """
         if self.img_pil_original is None:
             return
         if self.scale < 3.0:
@@ -260,35 +291,33 @@ class ImageScaler(QWidget):
         self.update_buttons_state()
 
     def update_buttons_state(self):
-        """
-        Enable or disable scale buttons based on current scale limits.
-        """
-        self.btn_upscale.setEnabled(self.scale < 3.0)
-        self.btn_downscale.setEnabled(self.scale > 0.05)
+        if self.img_pil_original is None:
+            self.btn_upscale.setEnabled(False)
+            self.btn_downscale.setEnabled(False)
+        else:
+            self.btn_upscale.setEnabled(self.scale < 3.0)
+            self.btn_downscale.setEnabled(self.scale > 0.05)
 
     def save_as(self):
-        """
-        Open a file dialog to save the currently displayed scaled image.
-        """
+        t = self.texts[self.lang]
         if self.img_resized is None:
-            QMessageBox.information(self, "Save", "No image to save.")
+            QMessageBox.information(self, t['title'], t['save_none'])
             return
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save Image As", "",
+            self, t['save_title'], "",
             "PNG (*.png);;JPEG (*.jpg *.jpeg);;BMP (*.bmp);;All Files (*)"
         )
         if not file_path:
             return
         try:
             self.img_resized.save(file_path)
-            QMessageBox.information(self, "Save", f"Image saved: {file_path}")
+            QMessageBox.information(self, t['title'], t['save_success'].format(file_path))
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to save image:\n{e}")
-
+            QMessageBox.warning(self, t['title'], t['save_error'].format(e))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = ImageScaler()
-    window.resize(900, 700)
+    window.resize(1000, 700)
     window.show()
     sys.exit(app.exec())
