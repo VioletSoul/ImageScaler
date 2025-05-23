@@ -10,7 +10,6 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PIL import Image
 
 class ResizeWorker(QThread):
-    # Signals for progress and completion
     progress_changed = pyqtSignal(int)
     finished = pyqtSignal(object)
 
@@ -21,7 +20,6 @@ class ResizeWorker(QThread):
         self.interp_method = interp_method
 
     def run(self):
-        # Perform resizing in steps for progress bar simulation
         width = max(1, int(self.pil_image.width * self.scale))
         height = max(1, int(self.pil_image.height * self.scale))
         steps = 10
@@ -113,7 +111,7 @@ class ImageScaler(QWidget):
         self.img_resized = None
         self.worker = None
         self.cached_pixmap = None
-        self.last_pixmap_scaled = None  # For "Size in frame" info
+        self.last_pixmap_scaled = None
 
         # Interpolation selector
         self.combo_interp = QComboBox()
@@ -211,11 +209,42 @@ class ImageScaler(QWidget):
 
         self.setLayout(main_layout)
 
+        # Enable drag & drop
+        self.setAcceptDrops(True)
+
         self.update_ui_texts()
         self.update_buttons_state()
 
+    # --- Drag & Drop Handlers ---
+    def dragEnterEvent(self, event):
+        # Accept only file drops with image extensions
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event):
+        # Load dropped image
+        for url in event.mimeData().urls():
+            file_path = url.toLocalFile()
+            if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+                self.load_image_from_path(file_path)
+                break
+
+    def load_image_from_path(self, file_path):
+        t = self.texts[self.lang]
+        try:
+            self.img_pil_original = Image.open(file_path).convert("RGBA")
+            self.scale = 1.0
+            self.update_buttons_state()
+            self.start_interpolation()
+        except Exception as e:
+            QMessageBox.warning(self, t['title'], t['load_error'].format(e))
+    # --- End Drag & Drop Handlers ---
+
     def update_ui_texts(self):
-        # Update all UI texts according to the selected language
         t = self.texts[self.lang]
         self.setWindowTitle(t['title'])
         self.btn_load.setText(t['load'])
@@ -232,7 +261,6 @@ class ImageScaler(QWidget):
         self.combo_interp.blockSignals(False)
         self.combo_lang.setItemText(0, "English")
         self.combo_lang.setItemText(1, "Русский")
-        # Show image or placeholder text
         if self.img_resized is None:
             self.label_image.clear()
             self.label_image.setText(t['no_image'])
@@ -243,7 +271,6 @@ class ImageScaler(QWidget):
             self.show_cached_pixmap()
 
     def show_cached_pixmap(self):
-        # Show cached QPixmap scaled to the label size
         if self.cached_pixmap:
             label_w = self.label_image.width()
             label_h = self.label_image.height()
@@ -257,7 +284,6 @@ class ImageScaler(QWidget):
             self.update_frame_size_label()
 
     def update_frame_size_label(self):
-        # Update only "Size in frame" value
         if self.img_resized and self.last_pixmap_scaled:
             self.labels_values[3].setText(
                 f"{self.last_pixmap_scaled.width()}×{self.last_pixmap_scaled.height()} px"
@@ -266,7 +292,6 @@ class ImageScaler(QWidget):
             self.labels_values[3].setText("-")
 
     def switch_language(self, idx):
-        # Switch UI language and update texts
         self.lang = self.languages[idx]
         self.update_ui_texts()
         self.update_buttons_state()
@@ -283,12 +308,10 @@ class ImageScaler(QWidget):
         self.btn_load.setEnabled(not busy)
 
     def on_interp_changed(self):
-        # Start interpolation if image is loaded and method changed
         if self.img_pil_original:
             self.start_interpolation()
 
     def load_image(self):
-        # Load image from file dialog
         t = self.texts[self.lang]
         file_path, _ = QFileDialog.getOpenFileName(
             self, t['load_title'], "",
@@ -296,17 +319,10 @@ class ImageScaler(QWidget):
         )
         if not file_path:
             return
-        try:
-            self.img_pil_original = Image.open(file_path).convert("RGBA")
-            self.scale = 1.0
-            self.update_buttons_state()
-            self.start_interpolation()
-        except Exception as e:
-            QMessageBox.warning(self, t['title'], t['load_error'].format(e))
+        self.load_image_from_path(file_path)
 
     def start_interpolation(self):
-        # Immediately block buttons before starting the thread!
-        self.worker = None  # Ensure no worker is running
+        # Block buttons immediately
         self.update_buttons_state()
         if self.worker and self.worker.isRunning():
             self.worker.terminate()
@@ -333,53 +349,46 @@ class ImageScaler(QWidget):
         self.update_buttons_state()
 
     def on_interpolation_finished(self, pil_img):
-        # Called when resize is done
         self.img_resized = pil_img
-        # Create and cache QPixmap only once after resizing
         data = pil_img.tobytes("raw", "RGBA")
         qimg = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888)
         self.cached_pixmap = QPixmap.fromImage(qimg)
         self.show_cached_pixmap()
         self.progress_bar.hide()
-        # Update info labels
         values = [
             f"{self.scale:.2f}x",
             f"{self.img_pil_original.width}×{self.img_pil_original.height} px",
             f"{pil_img.width}×{pil_img.height} px",
-            self.labels_values[3].text()  # "Size in frame" is updated separately
+            f"{self.last_pixmap_scaled.width()}×{self.last_pixmap_scaled.height()} px"
         ]
         for lbl_value, val in zip(self.labels_values, values):
             lbl_value.setText(val)
         self.update_buttons_state()
 
     def resizeEvent(self, event):
-        # On window resize, just rescale cached pixmap and update frame size info
         super().resizeEvent(event)
         if self.cached_pixmap:
             self.show_cached_pixmap()
 
     def downscale(self):
-        # Decrease scale and start interpolation
         if not self.img_pil_original:
             QMessageBox.information(self, self.texts[self.lang]['title'], self.texts[self.lang]['please_load'])
             return
         if self.scale <= 0.05:
             return
         self.scale = max(0.05, self.scale - 0.05)
-        self.start_interpolation()  # update_buttons_state called inside
+        self.start_interpolation()
 
     def upscale(self):
-        # Increase scale and start interpolation
         if not self.img_pil_original:
             QMessageBox.information(self, self.texts[self.lang]['title'], self.texts[self.lang]['please_load'])
             return
         if self.scale >= 3.0:
             return
         self.scale = min(3.0, self.scale + 0.05)
-        self.start_interpolation()  # update_buttons_state called inside
+        self.start_interpolation()
 
     def save_as(self):
-        # Save image to file
         t = self.texts[self.lang]
         if self.img_resized is None:
             QMessageBox.information(self, t['title'], t['please_load'])
