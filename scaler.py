@@ -24,9 +24,9 @@ class ResizeWorker(QThread):
         height = max(1, int(self.pil_image.height * self.scale))
 
         # Simulate progress proportional to scale and image size
-        steps = 10
+        steps = 5
         # Adjust sleep time to be shorter when scaling down (fast) and longer when scaling up
-        base_sleep = 50  # base ms per step
+        base_sleep = 10  # base ms per step
         sleep_time = max(5, int(base_sleep * self.scale))  # faster for small scale
 
         for i in range(steps):
