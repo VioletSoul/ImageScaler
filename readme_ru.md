@@ -1,5 +1,13 @@
 # ImageScaler
 
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![PyQt6](https://img.shields.io/badge/PyQt6-41CD52?style=flat&logo=qt&logoColor=white)
+![Pillow](https://img.shields.io/badge/Pillow-FFD43B?style=flat&logo=python&logoColor=blue)
+![Image Processing](https://img.shields.io/badge/Image%20Processing-✓-orange)
+![Cross-Platform](https://img.shields.io/badge/Cross--Platform-✓-blueviolet)
+![Multilingual](https://img.shields.io/badge/Multilingual-✓-lightgrey)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
 ## Краткое описание
 ImageScaler — это простое и удобное PyQt6-приложение для загрузки, просмотра, масштабирования и сохранения изображений с использованием высококачественных методов интерполяции (Nearest, Bilinear, Bicubic, Lanczos). Программа позволяет легко изменять разрешение изображений, сохраняя качество, и отображает подробную информацию о размерах.
 
