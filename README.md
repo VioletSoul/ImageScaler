@@ -7,6 +7,8 @@
 ![Cross-Platform](https://img.shields.io/badge/Cross--Platform-✓-blueviolet)
 ![Multilingual](https://img.shields.io/badge/Multilingual-✓-lightgrey)
 ![License](https://img.shields.io/badge/License-MIT-blue)
+[![Stars](https://img.shields.io/github/stars/VioletSoul/ImageScaler.svg?style=social)](https://github.com/VioletSoul/ImageScaler)
+[![Last Commit](https://img.shields.io/github/last-commit/VioletSoul/ImageScaler.svg)](https://github.com/VioletSoul/ImageScaler/commits/main)
 
 ## Brief Description
 ImageScaler is a simple and user-friendly PyQt6 application for loading, viewing, scaling, and saving images using high-quality interpolation methods (Nearest, Bilinear, Bicubic, Lanczos). The program allows easy resolution changes while preserving quality and displays detailed size information.
