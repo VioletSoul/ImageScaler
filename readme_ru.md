@@ -7,6 +7,8 @@
 ![Cross-Platform](https://img.shields.io/badge/Cross--Platform-✓-blueviolet)
 ![Multilingual](https://img.shields.io/badge/Multilingual-✓-lightgrey)
 ![License](https://img.shields.io/badge/License-MIT-blue)
+![Repo Size](https://img.shields.io/github/repo-size/VioletSoul/ImageScaler)
+![Code Size](https://img.shields.io/github/languages/code-size/VioletSoul/ImageScaler)
 [![Stars](https://img.shields.io/github/stars/VioletSoul/ImageScaler.svg?style=social)](https://github.com/VioletSoul/ImageScaler)
 [![Last Commit](https://img.shields.io/github/last-commit/VioletSoul/ImageScaler.svg)](https://github.com/VioletSoul/ImageScaler/commits/main)
 
