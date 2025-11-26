@@ -14,7 +14,7 @@
 
 ## Brief Description
 ImageScaler is a simple and user-friendly PyQt6 application for loading, viewing, scaling, and saving images using high-quality interpolation methods (Nearest, Bilinear, Bicubic, Lanczos). The program allows easy resolution changes while preserving quality and displays detailed size information.
-
+![screen.png](screen.png)
 ## Project Description
 This application was created for users who need quick and quality image resolution changes without complex graphic editors. PyQt6 provides a convenient and responsive interface, while Pillow ensures high-quality image processing. Future plans include expanding functionality, adding support for more formats, and improving the interface.
 
